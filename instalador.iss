@@ -1,6 +1,6 @@
 
 #define MyAppName "Gestor de Catálogo TUU"
-#define MyAppVersion "1.0"
+#define MyAppVersion "2.0"
 #define MyAppExeName "GestorTUU.exe"
 
 [Setup]
@@ -11,7 +11,7 @@ AppPublisher=Gestor TUU
 DefaultDirName={localappdata}\Programs\GestorTUU
 DefaultGroupName=Gestor TUU
 OutputDir=instaladores
-OutputBaseFilename=GestorTUU_Setup_v1.0
+OutputBaseFilename=GestorTUU_Setup_v2.0
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -27,6 +27,7 @@ Name: "desktopicon"; Description: "Crear un acceso directo en el escritorio"; Gr
 
 [Files]
 Source: "dist\GestorTUU\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Gestor de Catálogo TUU"; Filename: "{app}\{#MyAppExeName}"

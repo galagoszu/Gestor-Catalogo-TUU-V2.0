@@ -150,6 +150,15 @@ def mostrar_formulario_producto(
     """
 
     modo_edicion = producto is not None
+    borrador = st.session_state.get("sku_borrador")
+    if borrador is not None and borrador.get("clave") != clave:
+        borrador = None
+
+    def valor(campo):
+        if borrador is not None:
+            return borrador["datos"].get(campo, "")
+        return obtener_valor(producto, campo)
+
 
     if modo_edicion:
         st.subheader("✏️ Editar producto")
@@ -175,16 +184,14 @@ def mostrar_formulario_producto(
 
         nombre = st.text_input(
             "Nombre del producto *",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "NOMBRE*"
             )
         )
 
         descripcion = st.text_area(
             "Descripción",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "Descripción"
             ),
             height=90
@@ -192,8 +199,7 @@ def mostrar_formulario_producto(
 
         peso = st.text_input(
             "Peso",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "PESO"
             )
         )
@@ -209,8 +215,7 @@ def mostrar_formulario_producto(
         with col_precio:
             precio = st.text_input(
                 "Precio de venta *",
-                value=obtener_valor(
-                    producto,
+                value=valor(
                     "PRECIO*"
                 ),
                 placeholder="Ej. 1990"
@@ -219,8 +224,7 @@ def mostrar_formulario_producto(
         with col_costo:
             precio_costo = st.text_input(
                 "Precio de costo",
-                value=obtener_valor(
-                    producto,
+                value=valor(
                     "PRECIO COSTO"
                 ),
                 placeholder="Ej. 1200"
@@ -234,16 +238,14 @@ def mostrar_formulario_producto(
 
         sku = st.text_input(
             "Código SKU",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "CÓDIGO SKU"
             )
         )
 
         codigo_barras = st.text_input(
             "Código de barras",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "CÓDIGO DE BARRAS"
             ),
             placeholder="Escribe o escanea el código",
@@ -252,6 +254,28 @@ def mostrar_formulario_producto(
                 "de barras que funcionan como teclado."
             )
         )
+
+        generar_barras = st.form_submit_button(
+            "🏷️ Generar código de barras interno",
+            help="Solo para productos sin código comercial. No reemplaza códigos existentes."
+        )
+
+        mensaje_barras = st.session_state.pop('barcode_mensaje', None)
+        if mensaje_barras:
+            tipo, texto = mensaje_barras
+            getattr(st, tipo)(texto)
+
+        st.markdown("##### Generador automático de SKU")
+        abreviatura_sku = st.text_input(
+            "Abreviatura del producto (opcional, máximo 6 caracteres)",
+            value=(borrador or {}).get("abreviatura", ""),
+            help="Ejemplo: ZER15. Si queda vacía se calcula desde el nombre."
+        )
+        generar = st.form_submit_button("🔢 Generar y previsualizar SKU")
+        mensaje_sku = st.session_state.pop('sku_mensaje', None)
+        if mensaje_sku:
+            tipo, texto = mensaje_sku
+            getattr(st, tipo)(texto)
 
         st.caption(
             "Puedes escribir el código o escanearlo "
@@ -267,16 +291,14 @@ def mostrar_formulario_producto(
 
         marca = st.text_input(
             "Marca",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "MARCAS"
             )
         )
 
         categoria = st.text_input(
             "Categoría",
-            value=obtener_valor(
-                producto,
+            value=valor(
                 "CATEGORIAS"
             )
         )
@@ -288,8 +310,7 @@ def mostrar_formulario_producto(
         st.markdown("#### Configuración")
 
         valor_exento = normalizar_si_no(
-            obtener_valor(
-                producto,
+            valor(
                 "¿EXENTO?*"
             ),
             predeterminado=(
@@ -298,8 +319,7 @@ def mostrar_formulario_producto(
         )
 
         valor_habilitado = normalizar_si_no(
-            obtener_valor(
-                producto,
+            valor(
                 "¿HABILITADO?*"
             ),
             predeterminado=(
@@ -402,7 +422,34 @@ def mostrar_formulario_producto(
         for columna in COLUMNAS_TUU
     }
 
+    if generar_barras:
+        st.session_state["barcode_solicitud"] = {
+            "clave": clave, "datos": datos.copy(),
+            "abreviatura": abreviatura_sku.strip()
+        }
+        return None, False
+
+    if generar:
+        st.session_state["sku_solicitud"] = {
+            "clave": clave, "datos": datos.copy(),
+            "abreviatura": abreviatura_sku.strip()
+        }
+        return None, False
+
     if guardar:
+        previo_barras = st.session_state.get('barcode_previsualizado')
+        st.session_state['barcode_generado_guardar'] = bool(
+            previo_barras and previo_barras.get('clave') == clave and
+            datos['CÓDIGO DE BARRAS'] == previo_barras.get('codigo')
+        )
+        # Si se cambió manualmente el SKU de la vista previa, no se reserva.
+        previo = st.session_state.get("sku_previsualizado")
+        if previo and previo.get("clave") == clave:
+            st.session_state["sku_generado_guardar"] = (
+                datos["CÓDIGO SKU"].upper() == previo["sku"]
+            )
+        else:
+            st.session_state["sku_generado_guardar"] = False
         errores = validar_producto(datos)
 
         if errores:
